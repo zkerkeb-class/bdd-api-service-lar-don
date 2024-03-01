@@ -30,4 +30,13 @@ userSchema.path('email').validate(async function (value) {
     return !emailCount; // La validation réussit si aucune autre entrée avec le même e-mail n'est trouvée
 }, 'Cet e-mail est déjà utilisé.');
 
+// Méthode pour comparer le mot de passe
+userSchema.methods.comparePassword = async function(candidatePassword) {
+    try {
+        return candidatePassword === this.password;
+    } catch (error) {
+        throw new Error(error);
+    }
+};
+
 module.exports = mongoose.model('User', userSchema)

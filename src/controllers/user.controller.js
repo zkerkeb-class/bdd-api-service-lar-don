@@ -48,6 +48,33 @@ exports.getUserById = async (req, res) => {
     }
 };
 
+exports.login = async (req, res) => {
+    try {
+        const usernameOrEmail = req.body.usernameOrEmail;
+        const password = req.body.password;
+
+        const user = await User.findOne({
+            $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }]
+        });
+
+        if (user) {
+            const passwordMatch = await user.comparePassword(password);
+
+            if (passwordMatch) {
+                res.status(200).json({ message: "Connexion réussie", user });
+            } else {
+                res.status(401).json({ message: "Mot de passe incorrect" });
+            }
+        } else {
+            res.status(404).json({ message: "Utilisateur non trouvé" });
+        }
+        res.status(200).json(user);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Erreur lors de la récupération de l\'utilisateur' });
+    }
+};
+
 /* UPDATE */
 
 exports.updateUser = async (req, res) => {
