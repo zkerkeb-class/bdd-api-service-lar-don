@@ -5,6 +5,7 @@ const controller = require("../controllers/user.controller")
 
 //router.get(<path>,<controller>.<method>)
 router.post("/",controller.createUser);
+router.get("/login",controller.login);
 router.get("/:id",controller.getUserById);
 router.get("/",controller.getAll);
 router.delete("/:id",controller.deleteUser);
