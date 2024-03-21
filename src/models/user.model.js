@@ -20,9 +20,13 @@ const userSchema = mongoose.Schema({
     },
     isAdmin:{
         type:Boolean,
-        required:true,
+        required:false,
         default:false
     },
+    stripeId:{
+        type:String,
+        required:false
+    }
 })
 
 userSchema.path('email').validate(async function (value) {

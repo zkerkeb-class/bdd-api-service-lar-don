@@ -1,119 +1,146 @@
-const User = require("../models/user.model");
+const User = require('../models/user.model');
+const { createCustomer } = require('./payment.controller');
 
 /* CREATE */
 exports.createUser = async (req, res) => {
-    try {
-        const newUser = new User({
-            email : req.body.email,
-            username:req.body.username,
-            password: req.body.password, // TODO : Hachage de mot de passe à prévoir
-            isAdmin: req.body.isAdmin,
-        });
+  const { email, username, password, isAdmin } = req.body;
 
-        const savedUser = await newUser.save();
-        return res.status(201).json(savedUser);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Erreur lors de la création du user' });
+  try {
+    // check if username or email already exists in the database
+    const userExists = await User.findOne({ $or: [{ username }, { email }] });
+
+    if (userExists) {
+      return res.status(400).json({ message: 'Utilisateur déjà existant' });
     }
-};
 
+    const customerId = await createCustomer(email);
+
+    console.log(customerId);
+
+    const newUser = new User({
+      email,
+      username,
+      password, // TODO : Hachage de mot de passe à prévoir
+      isAdmin,
+      customerId,
+    });
+
+    const savedUser = await newUser.save();
+    return res.status(201).json(savedUser);
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: 'Erreur lors de la création du user' });
+  }
+};
 
 /* GET */
 
 exports.getAll = async (req, res) => {
-    try {
-        const users = await User.find();
-        return res.status(200).json(users);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({message: 'Erreur lors de la récupération des utilisateurs'});
-    }
-}
+  try {
+    const users = await User.find();
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: 'Erreur lors de la récupération des utilisateurs' });
+  }
+};
 
 exports.getUserById = async (req, res) => {
-    try {
-        const userId = req.params.id;
+  try {
+    const userId = req.params.id;
 
-        const user = await User.findById(userId);
+    const user = await User.findById(userId);
 
-        if (!user) {
-            return res.status(404).json({ message: 'Utilisateur non trouvé' });
-        }
-
-        res.status(200).json(user);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Erreur lors de la récupération de l\'utilisateur' });
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Erreur lors de la récupération de l'utilisateur" });
+  }
 };
 
 exports.login = async (req, res) => {
-    try {
-        const usernameOrEmail = req.body.usernameOrEmail;
-        const password = req.body.password;
+  try {
+    const usernameOrEmail = req.body.usernameOrEmail;
+    const password = req.body.password;
 
-        const user = await User.findOne({
-            $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }]
-        });
+    const user = await User.findOne({
+      $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
+    });
 
-        if (user) {
-            const passwordMatch = await user.comparePassword(password);
+    if (user) {
+      const passwordMatch = await user.comparePassword(password);
 
-            if (passwordMatch) {
-                return res.status(200).json({ message: "Connexion réussie", user });
-            } else {
-                return res.status(401).json({ message: "Mot de passe incorrect" });
-            }
-        } else {
-            return res.status(404).json({ message: "Utilisateur non trouvé" });
-        }
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Erreur lors de la récupération de l\'utilisateur' });
+      if (passwordMatch) {
+        return res.status(200).json({ message: 'Connexion réussie', user });
+      } else {
+        return res.status(401).json({ message: 'Mot de passe incorrect' });
+      }
+    } else {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Erreur lors de la récupération de l'utilisateur" });
+  }
 };
 
 /* UPDATE */
 
 exports.updateUser = async (req, res) => {
-    try {
-        const userId = req.params.id;
-        const {email,password } = req.body;
+  try {
+    const userId = req.params.id;
+    const { email, password } = req.body;
 
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            {email, password },
-            { new: true }
-        );
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { email, password },
+      { new: true }
+    );
 
-        if (!updatedUser) {
-            return res.status(404).json({ message: 'Utilisateur non trouvé' });
-        }
-
-        return res.status(200).json(updatedUser);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Erreur lors de la mise à jour de l\'utilisateur' });
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
-};
 
+    return res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Erreur lors de la mise à jour de l'utilisateur" });
+  }
+};
 
 /* DELETE */
 
 exports.deleteUser = async (req, res) => {
-    try {
-        const userId = req.params.id;
+  try {
+    const userId = req.params.id;
 
-        const deletedUser = await User.findByIdAndDelete(userId);
+    const deletedUser = await User.findByIdAndDelete(userId);
 
-        if (!deletedUser) {
-            return res.status(404).json({ message: 'Utilisateur non trouvé' });
-        }
-
-        return res.status(200).json({ message: 'Utilisateur supprimé avec succès' });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Erreur lors de la suppression de l\'utilisateur' });
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
+
+    return res
+      .status(200)
+      .json({ message: 'Utilisateur supprimé avec succès' });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Erreur lors de la suppression de l'utilisateur" });
+  }
 };

@@ -13,11 +13,11 @@ app.use(bodyParser.json());
 app.use(cors());
 mongoose.connect(`mongodb+srv://${process.env.DBUSER}:${process.env.DBPASS}@${process.env.DBCLUSTER}.hu4mwmc.mongodb.net/${process.env.DATABASE}?retryWrites=true&w=majority
 `).then(()=>{
-    console.log("Connection successfull");
+    console.log("(mongodb) Connection successfull");
 }).catch(err=>console.error(err));
 
 
 app.use('/bdd-api',apiRouter)
 app.listen(process.env.PORT, () => {
-    console.log(`Serveur démarré sur le port ${process.env.PORT}`);
+    console.log(`[BDD API] Serveur démarré sur le port ${process.env.PORT}`);
 });
