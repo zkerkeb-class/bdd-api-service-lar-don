@@ -15,8 +15,6 @@ exports.createUser = async (req, res) => {
 
     const customerId = await createCustomer(email);
 
-    console.log(customerId);
-
     const newUser = new User({
       email,
       username,
