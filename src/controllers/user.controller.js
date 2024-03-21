@@ -11,10 +11,10 @@ exports.createUser = async (req, res) => {
         });
 
         const savedUser = await newUser.save();
-        res.status(201).json(savedUser);
+        return res.status(201).json(savedUser);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la création du user' });
+        return res.status(500).json({ message: 'Erreur lors de la création du user' });
     }
 };
 
@@ -24,10 +24,10 @@ exports.createUser = async (req, res) => {
 exports.getAll = async (req, res) => {
     try {
         const users = await User.find();
-        res.status(200).json(users);
+        return res.status(200).json(users);
     } catch (error) {
         console.error(error);
-        res.status(500).json({message: 'Erreur lors de la récupération des utilisateurs'});
+        return res.status(500).json({message: 'Erreur lors de la récupération des utilisateurs'});
     }
 }
 
@@ -44,7 +44,7 @@ exports.getUserById = async (req, res) => {
         res.status(200).json(user);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la récupération de l\'utilisateur' });
+        return res.status(500).json({ message: 'Erreur lors de la récupération de l\'utilisateur' });
     }
 };
 
@@ -61,17 +61,16 @@ exports.login = async (req, res) => {
             const passwordMatch = await user.comparePassword(password);
 
             if (passwordMatch) {
-                res.status(200).json({ message: "Connexion réussie", user });
+                return res.status(200).json({ message: "Connexion réussie", user });
             } else {
-                res.status(401).json({ message: "Mot de passe incorrect" });
+                return res.status(401).json({ message: "Mot de passe incorrect" });
             }
         } else {
-            res.status(404).json({ message: "Utilisateur non trouvé" });
+            return res.status(404).json({ message: "Utilisateur non trouvé" });
         }
-        res.status(200).json(user);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la récupération de l\'utilisateur' });
+        return res.status(500).json({ message: 'Erreur lors de la récupération de l\'utilisateur' });
     }
 };
 
@@ -92,10 +91,10 @@ exports.updateUser = async (req, res) => {
             return res.status(404).json({ message: 'Utilisateur non trouvé' });
         }
 
-        res.status(200).json(updatedUser);
+        return res.status(200).json(updatedUser);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la mise à jour de l\'utilisateur' });
+        return res.status(500).json({ message: 'Erreur lors de la mise à jour de l\'utilisateur' });
     }
 };
 
@@ -112,9 +111,9 @@ exports.deleteUser = async (req, res) => {
             return res.status(404).json({ message: 'Utilisateur non trouvé' });
         }
 
-        res.status(200).json({ message: 'Utilisateur supprimé avec succès' });
+        return res.status(200).json({ message: 'Utilisateur supprimé avec succès' });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Erreur lors de la suppression de l\'utilisateur' });
+        return res.status(500).json({ message: 'Erreur lors de la suppression de l\'utilisateur' });
     }
 };
