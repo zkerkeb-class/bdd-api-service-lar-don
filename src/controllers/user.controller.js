@@ -33,20 +33,6 @@ exports.createUser = async (req, res) => {
     });
 
     return res.status(201).json(user);
-
-    // const customerId = await createCustomer(email);
-    // console.log(customerId);
-    // const newUser = new User({
-    //   email,
-    //   username,
-    //   password, // TODO : Hachage de mot de passe à prévoir
-    //   isAdmin,
-    //   customerId,
-    // });
-
-    // const savedUser = await newUser.save();
-    // console.log(savedUser);
-    // return res.status(201).json(savedUser);
   } catch (error) {
     console.error(error);
     return res
