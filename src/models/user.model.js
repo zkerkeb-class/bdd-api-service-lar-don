@@ -29,7 +29,7 @@ const userSchema = mongoose.Schema({
     },
     isLive:{
         type:Boolean,
-        required:true,
+        required:false,
         default:false
     }
 })

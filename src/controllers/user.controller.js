@@ -1,5 +1,6 @@
 const User = require('../models/user.model');
 const { createCustomer } = require('./payment.controller');
+const axios = require('axios');
 
 /* CREATE */
 exports.createUser = async (req, res) => {
@@ -27,10 +28,21 @@ exports.createUser = async (req, res) => {
           };
           const newUser = new User(userData);
           const savedUser = await newUser.save();
+          await axios.post(`${process.env.MAILING_API}/mail/send-confirm`,
+              {
+                user:newUser
+              })
+              .then(response => {
+                console.log(response.data)
+              })
+              .catch(error => {
+                console.error('Erreur lors de l\'envoie de mail', error.response.data);
+              })
           resolve(savedUser);
         })
         .catch((error) => reject(error));
     });
+
 
     return res.status(201).json(user);
   } catch (error) {
@@ -148,5 +160,26 @@ exports.deleteUser = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Erreur lors de la suppression de l'utilisateur" });
+  }
+};
+
+exports.confirm = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const user = await User.findByIdAndUpdate(userId, { $set: { live: true }}, { new: true });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    return res
+        .status(200)
+        .json({ message: 'Votre compte à bien été confirmer' });
+  } catch (error) {
+    console.error(error);
+    return res
+        .status(500)
+        .json({ message: "Erreur lors de la suppression de l'utilisateur" });
   }
 };
