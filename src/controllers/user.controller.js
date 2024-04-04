@@ -10,21 +10,43 @@ exports.createUser = async (req, res) => {
     const userExists = await User.findOne({ $or: [{ username }, { email }] });
 
     if (userExists) {
-      return res.status(400).json({ message: 'Utilisateur déjà existant' });
+      return res.status(400).json({
+        message: 'Un utilisateur utilisant le même nom ou email existe déjà.',
+      });
     }
 
-    const customerId = await createCustomer(email);
-
-    const newUser = new User({
-      email,
-      username,
-      password, // TODO : Hachage de mot de passe à prévoir
-      isAdmin,
-      customerId,
+    const user = await new Promise((resolve, reject) => {
+      createCustomer(email)
+        .then(async (customerId) => {
+          const userData = {
+            email,
+            username,
+            password,
+            isAdmin,
+            stripeId: customerId,
+          };
+          const newUser = new User(userData);
+          const savedUser = await newUser.save();
+          resolve(savedUser);
+        })
+        .catch((error) => reject(error));
     });
 
-    const savedUser = await newUser.save();
-    return res.status(201).json(savedUser);
+    return res.status(201).json(user);
+
+    // const customerId = await createCustomer(email);
+    // console.log(customerId);
+    // const newUser = new User({
+    //   email,
+    //   username,
+    //   password, // TODO : Hachage de mot de passe à prévoir
+    //   isAdmin,
+    //   customerId,
+    // });
+
+    // const savedUser = await newUser.save();
+    // console.log(savedUser);
+    // return res.status(201).json(savedUser);
   } catch (error) {
     console.error(error);
     return res
