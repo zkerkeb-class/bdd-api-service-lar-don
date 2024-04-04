@@ -26,6 +26,11 @@ const userSchema = mongoose.Schema({
     stripeId:{
         type:String,
         required:false
+    },
+    isLive:{
+        type:Boolean,
+        required:true,
+        default:false
     }
 })
 
