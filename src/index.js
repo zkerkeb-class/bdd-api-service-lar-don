@@ -21,12 +21,12 @@ mongoose
 `
   )
   .then(() => {
-    console.log('(mongodb) Connection successfull');
+    console.info('(mongodb) Connection successfull');
   })
   .catch((err) => console.error(err));
 
 app.use('/bdd-api', apiRouter);
 
 app.listen(process.env.PORT, () => {
-  console.log(`[BDD API] Serveur démarré sur le port ${process.env.PORT}`);
+  console.info(`[BDD API] Serveur démarré sur le port ${process.env.PORT}`);
 });
