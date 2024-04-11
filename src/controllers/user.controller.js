@@ -42,7 +42,7 @@ exports.createUser = async (req, res) => {
           await axios.post(`${process.env.MAILING_API}/sms/send-sms`,
               {
                 phoneNumber:"33671794533",//newUser.phoneNumber,
-                smsContent:"Votre compte viens d'être crée sur Lardon Services. " +
+                smsContent:"Votre compte viens d\'être crée sur Lardon Services. " +
                     `Penser à confirmer votre compte via votre adresse mail : ${newUser.email}`
               })
               .then(response => {
