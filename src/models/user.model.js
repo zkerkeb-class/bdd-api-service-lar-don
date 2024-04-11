@@ -18,6 +18,12 @@ const userSchema = mongoose.Schema({
         minLength:8,
         maxLength:300
     },
+    phoneNumber:{
+        //Format type [indicatif][numero] : un numero français 33671794543
+        type:String,
+        required:true,
+        trim:true,
+    },
     isAdmin:{
         type:Boolean,
         required:false,

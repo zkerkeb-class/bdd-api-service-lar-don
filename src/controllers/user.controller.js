@@ -4,7 +4,7 @@ const axios = require('axios');
 
 /* CREATE */
 exports.createUser = async (req, res) => {
-  const { email, username, password, isAdmin } = req.body;
+  const { email, username, password, isAdmin, phoneNumber } = req.body;
 
   try {
     // check if username or email already exists in the database
@@ -24,6 +24,7 @@ exports.createUser = async (req, res) => {
             username,
             password,
             isAdmin,
+            phoneNumber,
             stripeId: customerId,
           };
           const newUser = new User(userData);
@@ -31,6 +32,18 @@ exports.createUser = async (req, res) => {
           await axios.post(`${process.env.MAILING_API}/mail/send-confirm`,
               {
                 user:newUser
+              })
+              .then(response => {
+                console.log(response.data)
+              })
+              .catch(error => {
+                console.error('Erreur lors de l\'envoie de mail', error.response.data);
+              })
+          await axios.post(`${process.env.MAILING_API}/sms/send-sms`,
+              {
+                phoneNumber:"33671794533",//newUser.phoneNumber,
+                smsContent:"Votre compte viens d'être crée sur Lardon Services. " +
+                    `Penser à confirmer votre compte via votre adresse mail : ${newUser.email}`
               })
               .then(response => {
                 console.log(response.data)
