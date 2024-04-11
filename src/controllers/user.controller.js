@@ -1,5 +1,8 @@
 const User = require('../models/user.model');
-const { createCustomer } = require('./payment.controller');
+const {
+  createCustomer,
+  createCustomerSession,
+} = require('./payment.controller');
 const axios = require('axios');
 
 /* CREATE */
@@ -111,7 +114,16 @@ exports.login = async (req, res) => {
       const passwordMatch = await user.comparePassword(password);
 
       if (passwordMatch) {
-        return res.status(200).json({ message: 'Connexion réussie', user });
+        createCustomerSession(user.stripeId)
+          .then(async (customerSecretId) => {
+            return res.status(200).json({ user, customerSecretId });
+          })
+          .catch((error) => {
+            return res.status(500).json({
+              message: 'Erreur lors de la création de la session customer',
+              error,
+            });
+          });
       } else {
         return res.status(401).json({ message: 'Mot de passe incorrect' });
       }
