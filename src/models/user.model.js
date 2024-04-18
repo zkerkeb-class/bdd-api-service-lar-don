@@ -37,7 +37,12 @@ const userSchema = mongoose.Schema({
         type:Boolean,
         required:false,
         default:false
-    }
+    },
+    subscriptionId:{
+        type:String,
+        default:null,
+        required:false
+    },
 })
 
 userSchema.path('email').validate(async function (value) {

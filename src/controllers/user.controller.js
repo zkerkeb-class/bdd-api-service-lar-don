@@ -32,6 +32,7 @@ exports.createUser = async (req, res) => {
             isAdmin,
             phoneNumber,
             stripeId: customerId,
+            subscriptionId: null,
           };
           const newUser = new User(userData);
           const savedUser = await newUser.save();
