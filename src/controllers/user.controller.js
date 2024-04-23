@@ -1,9 +1,12 @@
-const User = require('../models/user.model');
+const User = require("../models/user.model");
 const {
   createCustomer,
   createCustomerSession,
-} = require('./payment.controller');
-const axios = require('axios');
+} = require("./payment.controller");
+const {
+  mailSendConfirmation,
+  smsSendConfirmation,
+} = require("./notif.controller");
 
 /* CREATE */
 exports.createUser = async (req, res) => {
@@ -15,7 +18,7 @@ exports.createUser = async (req, res) => {
 
     if (userExists) {
       return res.status(400).json({
-        message: 'Un utilisateur utilisant le même nom ou email existe déjà.',
+        message: "Un utilisateur utilisant le même nom ou email existe déjà.",
       });
     }
 
@@ -29,42 +32,32 @@ exports.createUser = async (req, res) => {
             isAdmin,
             phoneNumber,
             stripeId: customerId,
+            subscriptionId: null,
           };
           const newUser = new User(userData);
           const savedUser = await newUser.save();
-          await axios.post(`${process.env.MAILING_API}/mail/send-confirm`,
-              {
-                user:newUser
-              })
-              .then(response => {
-                console.log(response.data)
-              })
-              .catch(error => {
-                console.error('Erreur lors de l\'envoie de mail', error.response.data);
-              })
-          await axios.post(`${process.env.MAILING_API}/sms/send-sms`,
-              {
-                phoneNumber:"33671794533",//newUser.phoneNumber,
-                smsContent:"Votre compte viens d\'être crée sur Lardon Services. " +
-                    `Penser à confirmer votre compte via votre adresse mail : ${newUser.email}`
-              })
-              .then(response => {
-                console.log(response.data)
-              })
-              .catch(error => {
-                console.error('Erreur lors de l\'envoie de mail', error.response.data);
-              })
-          resolve(savedUser);
+
+          // await mailSendConfirmation(savedUser);
+
+          // await smsSendConfirmation(savedUser);
+
+          await createCustomerSession(savedUser.stripeId)
+            .then(async (customerSecretId) => {
+              resolve({ user: savedUser, customerSecretId });
+            })
+            .catch((error) => {
+              return res.status(500).json({
+                message: "Erreur lors de la création de la session customer",
+                error,
+              });
+            });
         })
         .catch((error) => reject(error));
     });
 
-
     return res.status(201).json(user);
   } catch (error) {
-    return res
-      .status(500)
-      .json(error);
+    return res.status(500).json(error);
   }
 };
 
@@ -78,7 +71,7 @@ exports.getAll = async (req, res) => {
     console.error(error);
     return res
       .status(500)
-      .json({ message: 'Erreur lors de la récupération des utilisateurs' });
+      .json({ message: "Erreur lors de la récupération des utilisateurs" });
   }
 };
 
@@ -89,7 +82,7 @@ exports.getUserById = async (req, res) => {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
 
     res.status(200).json(user);
@@ -120,15 +113,15 @@ exports.login = async (req, res) => {
           })
           .catch((error) => {
             return res.status(500).json({
-              message: 'Erreur lors de la création de la session customer',
+              message: "Erreur lors de la création de la session customer",
               error,
             });
           });
       } else {
-        return res.status(401).json({ message: 'Mot de passe incorrect' });
+        return res.status(401).json({ message: "Mot de passe incorrect" });
       }
     } else {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
   } catch (error) {
     console.error(error);
@@ -152,7 +145,7 @@ exports.updateUser = async (req, res) => {
     );
 
     if (!updatedUser) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
 
     return res.status(200).json(updatedUser);
@@ -173,12 +166,12 @@ exports.deleteUser = async (req, res) => {
     const deletedUser = await User.findByIdAndDelete(userId);
 
     if (!deletedUser) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
 
     return res
       .status(200)
-      .json({ message: 'Utilisateur supprimé avec succès' });
+      .json({ message: "Utilisateur supprimé avec succès" });
   } catch (error) {
     console.error(error);
     return res
@@ -191,19 +184,53 @@ exports.confirm = async (req, res) => {
   try {
     const userId = req.params.id;
 
-    const user = await User.findByIdAndUpdate(userId, { $set: { live: true }}, { new: true });
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: { live: true } },
+      { new: true }
+    );
 
     if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
 
     return res
-        .status(200)
-        .json({ message: 'Votre compte à bien été confirmer' });
+      .status(200)
+      .json({ message: "Votre compte à bien été confirmer" });
   } catch (error) {
     console.error(error);
     return res
-        .status(500)
-        .json({ message: "Erreur lors de la suppression de l'utilisateur" });
+      .status(500)
+      .json({ message: "Erreur lors de la suppression de l'utilisateur" });
+  }
+};
+
+/* HANDLE GOOGLE USER */
+exports.handleGoogleUser = async (req, res) => {
+  const { email, googleId, name } = req.body;
+
+  try {
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({
+        email,
+        username: name, // Use Google name as username
+        googleId,
+        password: null, // No password for Google users
+        phoneNumber: null, // Assuming phone number is not required
+        isAdmin: false, // Adjust based on your business logic
+      });
+      await user.save();
+    } else {
+      user.googleId = googleId; // Update the googleId if already exists
+      await user.save();
+    }
+    res.status(201).json(user);
+  } catch (error) {
+    console.error("Database operation failed", error);
+    res
+      .status(500)
+      .json({ message: "Error processing Google user data", error });
   }
 };
