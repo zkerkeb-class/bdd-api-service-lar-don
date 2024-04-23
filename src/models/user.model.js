@@ -13,7 +13,7 @@ const userSchema = mongoose.Schema({
     },
     password:{
         type:String,
-        required:true,
+        required:false,
         trim:true,
         minLength:8,
         maxLength:300
@@ -21,7 +21,7 @@ const userSchema = mongoose.Schema({
     phoneNumber:{
         //Format type [indicatif][numero] : un numero français 33671794543
         type:String,
-        required:true,
+        required:false,
         trim:true,
     },
     isAdmin:{

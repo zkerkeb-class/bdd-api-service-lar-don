@@ -1,12 +1,12 @@
-const User = require("../models/user.model");
+const User = require('../models/user.model');
 const {
   createCustomer,
   createCustomerSession,
-} = require("./payment.controller");
+} = require('./payment.controller');
 const {
   mailSendConfirmation,
   smsSendConfirmation,
-} = require("./notif.controller");
+} = require('./notif.controller');
 
 /* CREATE */
 exports.createUser = async (req, res) => {
@@ -18,7 +18,7 @@ exports.createUser = async (req, res) => {
 
     if (userExists) {
       return res.status(400).json({
-        message: "Un utilisateur utilisant le même nom ou email existe déjà.",
+        message: 'Un utilisateur utilisant le même nom ou email existe déjà.',
       });
     }
 
@@ -33,6 +33,7 @@ exports.createUser = async (req, res) => {
             phoneNumber,
             stripeId: customerId,
             subscriptionId: null,
+            googleId: null,
           };
           const newUser = new User(userData);
           const savedUser = await newUser.save();
@@ -47,7 +48,7 @@ exports.createUser = async (req, res) => {
             })
             .catch((error) => {
               return res.status(500).json({
-                message: "Erreur lors de la création de la session customer",
+                message: 'Erreur lors de la création de la session customer',
                 error,
               });
             });
@@ -71,7 +72,7 @@ exports.getAll = async (req, res) => {
     console.error(error);
     return res
       .status(500)
-      .json({ message: "Erreur lors de la récupération des utilisateurs" });
+      .json({ message: 'Erreur lors de la récupération des utilisateurs' });
   }
 };
 
@@ -82,7 +83,7 @@ exports.getUserById = async (req, res) => {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
     res.status(200).json(user);
@@ -113,15 +114,15 @@ exports.login = async (req, res) => {
           })
           .catch((error) => {
             return res.status(500).json({
-              message: "Erreur lors de la création de la session customer",
+              message: 'Erreur lors de la création de la session customer',
               error,
             });
           });
       } else {
-        return res.status(401).json({ message: "Mot de passe incorrect" });
+        return res.status(401).json({ message: 'Mot de passe incorrect' });
       }
     } else {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
   } catch (error) {
     console.error(error);
@@ -145,7 +146,7 @@ exports.updateUser = async (req, res) => {
     );
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
     return res.status(200).json(updatedUser);
@@ -166,12 +167,12 @@ exports.deleteUser = async (req, res) => {
     const deletedUser = await User.findByIdAndDelete(userId);
 
     if (!deletedUser) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
     return res
       .status(200)
-      .json({ message: "Utilisateur supprimé avec succès" });
+      .json({ message: 'Utilisateur supprimé avec succès' });
   } catch (error) {
     console.error(error);
     return res
@@ -191,12 +192,12 @@ exports.confirm = async (req, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
     return res
       .status(200)
-      .json({ message: "Votre compte à bien été confirmer" });
+      .json({ message: 'Votre compte à bien été confirmer' });
   } catch (error) {
     console.error(error);
     return res
@@ -210,27 +211,67 @@ exports.handleGoogleUser = async (req, res) => {
   const { email, googleId, name } = req.body;
 
   try {
-    let user = await User.findOne({ email });
+    const user = await User.findOne({ email });
 
     if (!user) {
-      user = new User({
-        email,
-        username: name, // Use Google name as username
-        googleId,
-        password: null, // No password for Google users
-        phoneNumber: null, // Assuming phone number is not required
-        isAdmin: false, // Adjust based on your business logic
+      const user = await new Promise((resolve, reject) => {
+        createCustomer(email)
+          .then(async (customerId) => {
+            const newUser = new User({
+              email,
+              username: name, // Use Google name as username
+              googleId,
+              password: null, // No password for Google users
+              phoneNumber: null, // Assuming phone number is not required
+              isAdmin: false, // Adjust based on your business logic
+              stripeId: customerId,
+              subscriptionId: null,
+            });
+
+            const savedUser = await newUser.save();
+
+            // await mailSendConfirmation(savedUser);
+
+            // await smsSendConfirmation(savedUser);
+
+            await createCustomerSession(savedUser.stripeId)
+              .then(async (customerSecretId) => {
+                resolve({ user: savedUser, customerSecretId });
+              })
+              .catch((error) => {
+                return res.status(500).json({
+                  message: 'Erreur lors de la création de la session customer',
+                  error,
+                });
+              });
+          })
+          .catch((error) => reject(error));
       });
-      await user.save();
+
+      return res.status(201).json(user);
     } else {
-      user.googleId = googleId; // Update the googleId if already exists
-      await user.save();
+      const newUser = await User.findByIdAndUpdate(
+        user._id,
+        { googleId },
+        { new: true }
+      );
+
+      createCustomerSession(newUser.stripeId)
+        .then(async (customerSecretId) => {
+          return res.status(200).json({ user: newUser, customerSecretId });
+        })
+        .catch((error) => {
+          console.log('Error creating customer session', error);
+          return res.status(500).json({
+            message: 'Erreur lors de la création de la session customer',
+            error,
+          });
+        });
     }
-    res.status(201).json(user);
   } catch (error) {
-    console.error("Database operation failed", error);
+    console.error('Database operation failed', error);
     res
       .status(500)
-      .json({ message: "Error processing Google user data", error });
+      .json({ message: 'Error processing Google user data', error });
   }
 };
