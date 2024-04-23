@@ -7,6 +7,7 @@ const cors = require('cors');
 require('dotenv').config();
 const { default: blockFlaggedIps } = require('./utils/blockFlaggedIps');
 const { default: apiLimiter } = require('./utils/apiLimiter');
+const { default: webMetrics } = require('./utils/webMetrics');
 
 mongoose.set('strictQuery', false);
 app.use(bodyParser.json());
@@ -14,16 +15,17 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(blockFlaggedIps);
 app.use(apiLimiter);
+app.use(webMetrics)
 
 mongoose
-  .connect(
-    `mongodb+srv://${process.env.DBUSER}:${process.env.DBPASS}@${process.env.DBCLUSTER}.hu4mwmc.mongodb.net/${process.env.DATABASE}?retryWrites=true&w=majority
-`
-  )
-  .then(() => {
-    console.info('(mongodb) Connection successfull');
-  })
-  .catch((err) => console.error(err));
+.connect(
+  `mongodb+srv://${process.env.DBUSER}:${process.env.DBPASS}@${process.env.DBCLUSTER}.hu4mwmc.mongodb.net/${process.env.DATABASE}?retryWrites=true&w=majority
+  `
+)
+.then(() => {
+  console.info('(mongodb) Connection successfull');
+})
+.catch((err) => console.error(err));
 
 app.use('/bdd-api', apiRouter);
 
