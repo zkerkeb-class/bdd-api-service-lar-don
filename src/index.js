@@ -7,15 +7,12 @@ const cors = require('cors');
 require('dotenv').config();
 const { default: blockFlaggedIps } = require('./utils/blockFlaggedIps');
 const { default: apiLimiter } = require('./utils/apiLimiter');
-const { default: webMetrics } = require('./utils/webMetrics');
-
-mongoose.set('strictQuery', false);
+const {webMetrics} = require("./utils/webMetrics");
 app.use(bodyParser.json());
 
 app.use(cors());
 app.use(blockFlaggedIps);
 app.use(apiLimiter);
-app.use(webMetrics)
 
 mongoose
 .connect(
@@ -27,6 +24,7 @@ mongoose
 })
 .catch((err) => console.error(err));
 
+app.get("/metrics", webMetrics)
 app.use('/bdd-api', apiRouter);
 
 app.listen(process.env.PORT, () => {
