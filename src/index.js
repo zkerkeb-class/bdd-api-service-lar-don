@@ -5,9 +5,20 @@ const app = express();
 const apiRouter = require('./routes/index');
 const cors = require('cors');
 require('dotenv').config();
+const client = require('prom-client');
+
 const { default: blockFlaggedIps } = require('./utils/blockFlaggedIps');
 const { default: apiLimiter } = require('./utils/apiLimiter');
 const { default: webMetrics } = require('./utils/webMetrics');
+
+const register = client.register;
+
+client.collectDefaultMetrics();
+
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
 
 mongoose.set('strictQuery', false);
 app.use(bodyParser.json());
