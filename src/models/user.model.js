@@ -4,17 +4,20 @@ const userSchema = mongoose.Schema({
     email:{
         type:String,
         required:true,
+        default:null,
         unique:true
     },
     username:{
         type:String,
         required:true,
+        default:null,
         unique:true
     },
     password:{
         type:String,
-        required:false,
+        required:false, // false si l'utilisateur s'inscrit via Google
         trim:true,
+        default:null,
         minLength:8,
         maxLength:300
     },
@@ -23,6 +26,7 @@ const userSchema = mongoose.Schema({
         type:String,
         required:false,
         trim:true,
+        default:null
     },
     isAdmin:{
         type:Boolean,
@@ -31,7 +35,8 @@ const userSchema = mongoose.Schema({
     },
     stripeId:{
         type:String,
-        required:false
+        required:false,
+        default:null
     },
     isLive:{
         type:Boolean,
@@ -42,6 +47,11 @@ const userSchema = mongoose.Schema({
         type:String,
         default:null,
         required:false
+    },
+    googleId:{
+        type:String,
+        required:false,
+        default:null
     },
 })
 

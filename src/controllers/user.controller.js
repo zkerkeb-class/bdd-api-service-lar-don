@@ -137,11 +137,11 @@ exports.login = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const userId = req.params.id;
-    const { email, password } = req.body;
+    const { email, password, subscriptionId } = req.body;
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { email, password },
+      { email, password, subscriptionId },
       { new: true }
     );
 
