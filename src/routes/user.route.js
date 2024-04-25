@@ -12,6 +12,7 @@ router.get("/",controller.getAll);
 router.delete("/:id",controller.deleteUser);
 router.put("/:id",controller.updateUser);
 router.put('/confirm/:id',controller.confirm)
+router.get('/:id/subscription',controller.getUserSubscription)
 
 module.exports = router;
 

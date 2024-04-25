@@ -2,6 +2,7 @@ const User = require('../models/user.model');
 const {
   createCustomer,
   createCustomerSession,
+  getSubscription,
 } = require('./payment.controller');
 const {
   mailSendConfirmation,
@@ -273,5 +274,22 @@ exports.handleGoogleUser = async (req, res) => {
     res
       .status(500)
       .json({ message: 'Error processing Google user data', error });
+  }
+};
+
+exports.getUserSubscription = async (req, res) => {
+  try {
+    getSubscription(req.params.id)
+      .then((subscription) => {
+        return res.status(200).json(subscription);
+      })
+      .catch((error) => {
+        return res.status(500).json({
+          message: "Erreur lors de la récupération de l'abonnement",
+          error,
+        });
+      });
+  } catch (error) {
+    console.error(error);
   }
 };

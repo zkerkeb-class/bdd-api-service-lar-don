@@ -19,3 +19,12 @@ exports.createCustomerSession = async (stripeId) => {
       throw error;
     });
 };
+
+exports.getSubscription = async (customerId) => {
+  return await axios
+    .get(`${paymentUrl}/customers/${customerId}/subscription`)
+    .then((response) => response.data)
+    .catch((error) => {
+      throw error;
+    });
+};
