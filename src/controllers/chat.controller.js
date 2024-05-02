@@ -54,7 +54,6 @@ exports.getAll = async (req, res) => {
 
     try {
         const chat = await Chat.find()
-        console.log(chat);
         if (!chat) {
             return res.status(404).json({ message: 'Chat non trouvé' });
         }

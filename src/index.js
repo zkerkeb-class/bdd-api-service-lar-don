@@ -7,7 +7,8 @@ const cors = require('cors');
 require('dotenv').config();
 const { default: blockFlaggedIps } = require('./utils/blockFlaggedIps');
 const { default: apiLimiter } = require('./utils/apiLimiter');
-const {webMetrics} = require("./utils/webMetrics");
+const { webMetrics } = require('./utils/webMetrics');
+const jsonwebtoken = require('jsonwebtoken');
 app.use(bodyParser.json());
 
 app.use(cors());
@@ -15,16 +16,37 @@ app.use(blockFlaggedIps);
 app.use(apiLimiter);
 
 mongoose
-.connect(
-  `mongodb+srv://${process.env.DBUSER}:${process.env.DBPASS}@${process.env.DBCLUSTER}.hu4mwmc.mongodb.net/${process.env.DATABASE}?retryWrites=true&w=majority
+  .connect(
+    `mongodb+srv://${process.env.DBUSER}:${process.env.DBPASS}@${process.env.DBCLUSTER}.hu4mwmc.mongodb.net/${process.env.DATABASE}?retryWrites=true&w=majority
   `
-)
-.then(() => {
-  console.info('(mongodb) Connection successfull');
-})
-.catch((err) => console.error(err));
+  )
+  .then(() => {
+    console.info('(mongodb) Connection successfull');
+  })
+  .catch((err) => console.error(err));
 
-app.get("/metrics", webMetrics)
+app.use(function (req, res, next) {
+  if (
+    req.headers &&
+    req.headers.authorization &&
+    req.headers.authorization.split(' ')[0] === 'Bearer'
+  ) {
+    jsonwebtoken.verify(
+      req.headers.authorization.split(' ')[1],
+      'LARDON-SERVICES',
+      function (err, decode) {
+        if (err) req.user = undefined;
+        req.user = decode;
+        next();
+      }
+    );
+  } else {
+    req.user = undefined;
+    next();
+  }
+});
+
+app.get('/metrics', webMetrics);
 app.use('/bdd-api', apiRouter);
 
 app.listen(process.env.PORT, () => {
