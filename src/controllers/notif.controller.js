@@ -1,28 +1,29 @@
 const { default: axios } = require('axios');
 require('dotenv').config();
 const notificationUrl = process.env.MAILING_API;
-const MailVerification = require('../models/mail-verification.model');
+const TokenVerification = require('../models/token-verification.model');
 
 exports.mailSendConfirmation = async (user) => {
-  const mailVerificationExists = await MailVerification.findOne({
+  const tokenVerificationExists = await TokenVerification.findOne({
     email: user.email,
+    type: 'confirm-email',
   });
 
-  if (mailVerificationExists) {
-    if (mailVerificationExists.isLive) {
+  if (tokenVerificationExists) {
+    if (tokenVerificationExists.isLive) {
       return {
         message: 'Ce mail a déjà été confirmé.',
       };
     } else {
       if (
-        new Date(mailVerificationExists.createdAt).getTime() <
+        new Date(tokenVerificationExists.createdAt).getTime() <
         new Date().getTime() - 600000
       ) {
-        await MailVerification.findByIdAndDelete(
-          mailVerificationExists._id
+        await TokenVerification.findByIdAndDelete(
+          tokenVerificationExists._id
         ).catch((error) => {
           console.error(
-            'Erreur lors de la suppression de MailVerification',
+            'Erreur lors de la suppression de TokenVerification',
             error
           );
           throw error;
@@ -43,15 +44,16 @@ exports.mailSendConfirmation = async (user) => {
     .then(async (response) => {
       const data = response.data.data;
 
-      const mailVerification = new MailVerification({
+      const tokenVerification = new TokenVerification({
         email: data.email,
         verificationToken: data.token,
         isLive: false,
+        type: 'confirm-email',
       });
 
-      await mailVerification.save().catch((error) => {
+      await tokenVerification.save().catch((error) => {
         console.error(
-          "Erreur lors de l'enregistrement de MailVerification",
+          "Erreur lors de l'enregistrement de TokenVerification",
           error
         );
         throw error;
@@ -66,18 +68,16 @@ exports.mailSendConfirmation = async (user) => {
     });
 };
 
-exports.smsSendConfirmation = async (user) => {
-  if (!user.phoneNumber) return console.error('Pas de numéro de téléphone');
+exports.sendSms = async (phoneNumber, content) => {
+  if (!phoneNumber) return console.error('Pas de numéro de téléphone');
 
   return await axios
     .post(`${notificationUrl}/sms/send-sms`, {
-      phoneNumber: user.phoneNumber,
-      smsContent:
-        "Votre compte viens d'être crée sur Lardon Services. " +
-        `Penser à confirmer votre compte via votre adresse mail : ${user.email}`,
+      phoneNumber: phoneNumber,
+      smsContent: content,
     })
     .then((response) => {
-      console.info(`SMS de confirmation envoyé à ${user.phoneNumber}`);
+      return { message: 'Sms envoyé', data: response.data };
     })
     .catch((error) => {
       console.error("Erreur lors de l'envoie de mail", error.response.data);

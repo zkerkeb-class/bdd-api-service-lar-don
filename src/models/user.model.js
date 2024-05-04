@@ -41,7 +41,6 @@ const userSchema = mongoose.Schema({
     select: false,
   },
   phoneNumber: {
-    //Format type [indicatif][numero] : un numero français 33671794543
     type: String,
     required: false,
     trim: true,
@@ -65,6 +64,15 @@ userSchema.path('email').validate(async function (value) {
   });
   return !emailCount; // La validation réussit si aucune autre entrée avec le même e-mail n'est trouvée
 }, 'Cet e-mail est déjà utilisé.');
+
+userSchema.path('phoneNumber').validate(async function (value) {
+  const phoneNumberCount = await mongoose.models.User.countDocuments({
+    phoneNumber: value,
+  });
+  const phoneNumberRegex = /^33\d{9}$/; // Regex to validate the format
+  const isValidFormat = phoneNumberRegex.test(value);
+  return !phoneNumberCount && isValidFormat; // Validation succeeds if no other entry with the same phone number is found and the format is valid
+}, 'Ce numéro de téléphone est déjà utilisé ou le format est incorrect.');
 
 userSchema.methods.comparePassword = async function (password) {
   return bcrypt.compareSync(password, this.password);

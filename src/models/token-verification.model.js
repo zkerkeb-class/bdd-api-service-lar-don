@@ -1,16 +1,26 @@
 const mongoose = require('mongoose');
 
-const mailVerificationSchema = mongoose.Schema({
+const tokenVerificationSchema = mongoose.Schema({
   email: {
     type: String,
     required: true,
     default: null,
-    unique: true,
+    unique: function () {
+      return {
+        email: this.email,
+        type: this.type,
+      };
+    },
   },
   verificationToken: {
     type: String,
     required: false,
     default: null,
+  },
+  type: {
+    type: String,
+    enum: ['confirm-email', 'reset-password'],
+    required: true,
   },
   isLive: {
     type: Boolean,
@@ -23,4 +33,4 @@ const mailVerificationSchema = mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model('MailVerification', mailVerificationSchema);
+module.exports = mongoose.model('TokenVerification', tokenVerificationSchema);

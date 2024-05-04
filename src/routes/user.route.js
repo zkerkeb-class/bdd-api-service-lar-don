@@ -17,6 +17,9 @@ router.get('/connected', controller.getConnectedUser);
 router.get('/', controller.loginRequired, controller.getAll);
 router.delete('/:id', controller.loginRequired, controller.deleteUser);
 router.put('/:id', controller.loginRequired, controller.updateUser);
+router.put('/:id/phone-number', controller.loginRequired, controller.updatePhoneNumber);
+router.post('/:id/reset-password', controller.loginRequired, controller.resetPassword);
+router.post('/:id/verify-reset-password', controller.loginRequired, controller.verifyResetPassword);
 router.post('/confirm-email', controller.confirmEmail);
 router.post(
   '/send-confirm-email',

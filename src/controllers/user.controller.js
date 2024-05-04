@@ -1,5 +1,5 @@
 const User = require('../models/user.model');
-const MailVerification = require('../models/mail-verification.model');
+const TokenVerification = require('../models/token-verification.model');
 const {
   createCustomer,
   createCustomerSession,
@@ -8,9 +8,11 @@ const {
 const {
   mailSendConfirmation,
   smsSendConfirmation,
+  sendSms,
 } = require('./notif.controller');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { refreshUser } = require('../utils/refreshUser');
 require('dotenv').config();
 
 /* REGISTER */
@@ -29,9 +31,8 @@ exports.register = async (req, res) => {
   newUser.password = bcrypt.hashSync(req.body.password, 10);
   const savedUser = await newUser.save();
 
-  // On envoie un email et un SMS de confirmation
+  // On envoie un email de confirmation
   await mailSendConfirmation(savedUser);
-  // await smsSendConfirmation(savedUser);
 
   // On crée un client stripe lié à notre application avec l'email de l'utilisateur
   await createCustomer(newUser.email)
@@ -69,13 +70,7 @@ exports.login = async (req, res) => {
   }
 
   // On renvoie un token
-  const userData = await User.findOne({
-    email: req.body.email,
-  }).lean();
-  return res.json({
-    data: userData,
-    token: jwt.sign(userData, process.env.JWT_SECRET),
-  });
+  refreshUser(user.email, res);
 };
 
 /* LOGIN VIA GOOGLE */
@@ -92,13 +87,7 @@ exports.loginGoogle = async (req, res) => {
 
     if (user) {
       // On renvoie un token
-      const userData = await User.findOne({
-        email: req.body.email,
-      }).lean();
-      return res.json({
-        data: userData,
-        token: jwt.sign(userData, process.env.JWT_SECRET),
-      });
+      refreshUser(emailExists.email, res);
     } else {
       // On met à jour l'utilisateur avec l'id Google
       await User.findByIdAndUpdate(
@@ -108,13 +97,7 @@ exports.loginGoogle = async (req, res) => {
       );
 
       // On renvoie un token
-      const userData = await User.findOne({
-        email: req.body.email,
-      }).lean();
-      return res.json({
-        data: JSON.parse(userData),
-        token: jwt.sign(JSON.parse(userData), process.env.JWT_SECRET),
-      });
+      refreshUser(emailExists.email, res);
     }
   } else {
     const googleLoginReq = {
@@ -145,13 +128,7 @@ exports.loginDiscord = async (req, res) => {
 
     if (user) {
       // On renvoie un token
-      const userData = await User.findOne({
-        email: req.body.email,
-      }).lean();
-      return res.json({
-        data: userData,
-        token: jwt.sign(userData, process.env.JWT_SECRET),
-      });
+      refreshUser(emailExists.email, res);
     } else {
       // On met à jour l'utilisateur avec l'id Discord
       await User.findByIdAndUpdate(
@@ -161,13 +138,7 @@ exports.loginDiscord = async (req, res) => {
       );
 
       // On renvoie un token
-      const userData = await User.findOne({
-        email: req.body.email,
-      }).lean();
-      return res.json({
-        data: userData,
-        token: jwt.sign(userData, process.env.JWT_SECRET),
-      });
+      refreshUser(emailExists.email, res);
     }
   } else {
     const discordLoginReq = {
@@ -198,13 +169,7 @@ exports.loginGithub = async (req, res) => {
 
     if (user) {
       // On renvoie un token
-      const userData = await User.findOne({
-        email: req.body.email,
-      }).lean();
-      return res.json({
-        data: userData,
-        token: jwt.sign(userData, process.env.JWT_SECRET),
-      });
+      refreshUser(emailExists.email, res);
     } else {
       // On met à jour l'utilisateur avec l'id Github
       await User.findByIdAndUpdate(
@@ -214,13 +179,7 @@ exports.loginGithub = async (req, res) => {
       );
 
       // On renvoie un token
-      const userData = await User.findOne({
-        email: req.body.email,
-      }).lean();
-      return res.json({
-        data: userData,
-        token: jwt.sign(userData, process.env.JWT_SECRET),
-      });
+      refreshUser(emailExists.email, res);
     }
   } else {
     const githubLoginReq = {
@@ -329,7 +288,7 @@ exports.updateUser = async (req, res) => {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    return res.status(200).json(updatedUser);
+    return refreshUser(updatedUser.email, res);
   } catch (error) {
     console.error(error);
     return res
@@ -363,8 +322,8 @@ exports.deleteUser = async (req, res) => {
 exports.confirmEmail = async (req, res) => {
   const token = req.params.token;
 
-  const mailVerification = await MailVerification.findOneAndUpdate(
-    { token: token },
+  const tokenVerification = await TokenVerification.findOneAndUpdate(
+    { token: token, type: 'confirm-email' },
     { isLive: true }
   ).catch((error) => {
     return res
@@ -373,27 +332,20 @@ exports.confirmEmail = async (req, res) => {
   });
 
   const newUser = await User.findOneAndUpdate(
-    { email: mailVerification.email },
+    { email: tokenVerification.email },
     { isLive: true }
   ).catch((error) => {
     return res.status(500).json({ message: 'Erreur lors de la confirmation' });
   });
 
-  if (!newUser || !mailVerification) {
+  if (!newUser || !tokenVerification) {
     return res
       .status(404)
       .json({ message: 'Token de confirmation non trouvé.' });
   }
 
   if (req.user && req.user._id === newUser._id) {
-    const userData = await User.findOne({
-      email: mailVerification.email,
-    }).lean();
-    return res.status(200).json({
-      message: 'Votre email a bien été confirmé',
-      data: userData,
-      token: jwt.sign(userData, process.env.JWT_SECRET),
-    });
+    refreshUser(newUser.email, res);
   } else {
     return res.status(200).json({ message: 'Votre email a bien été confirmé' });
   }
@@ -420,4 +372,84 @@ exports.getUserSubscription = async (req, res) => {
   } catch (error) {
     console.error(error);
   }
+};
+
+exports.updatePhoneNumber = async (req, res) => {
+  const phoneNumber = req.body.phoneNumber;
+
+  const phoneNumberCount = await User.countDocuments({
+    phoneNumber,
+  });
+  const phoneNumberRegex = /^33\d{9}$/; // Regex to validate the format
+  const isValidFormat = phoneNumberRegex.test(phoneNumber);
+
+  if (phoneNumberCount || !isValidFormat) {
+    return res.status(400).json({
+      message:
+        'Ce numéro de téléphone est déjà utilisé ou le format est incorrect',
+    });
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    { phoneNumber },
+    { new: true }
+  );
+
+  if (!updatedUser) {
+    return res.status(404).json({ message: 'Utilisateur non trouvé' });
+  }
+
+  return refreshUser(updatedUser.email, res);
+};
+
+exports.resetPassword = async (req, res) => {
+  await sendSms(req.user.phoneNumber, 'test');
+
+  await TokenVerification.deleteMany({
+    email: req.user.email,
+    type: 'reset-password',
+  });
+
+  const token = Math.floor(1000 + Math.random() * 9000).toString();
+
+  const tokenVerification = await new TokenVerification({
+    email: req.user.email,
+    verificationToken: token,
+    type: 'reset-password',
+  });
+  await tokenVerification.save();
+
+  return res
+    .status(200)
+    .json({ message: 'Un SMS de réinitialisation a été envoyé' });
+};
+
+exports.verifyResetPassword = async (req, res) => {
+  const { token, password } = req.body;
+  const tokenVerification = await TokenVerification.findOne({
+    verificationToken: token,
+    email: req.user.email,
+    type: 'reset-password',
+  });
+
+  if (!tokenVerification) {
+    return res.status(404).json({ message: 'Token invalide' });
+  }
+
+  const hashPassword = bcrypt.hashSync(password, 10);
+  const updated = await User.findByIdAndUpdate(req.user._id, {
+    password: hashPassword,
+  });
+
+  if (!updated) {
+    return res.status(404).json({ message: 'Utilisateur non trouvé' });
+  }
+
+  await TokenVerification.deleteMany({
+    email: req.user.email,
+    type: 'reset-password',
+  });
+
+  return res.status(200).json({ message: 'Mot de passe réinitialisé' });
 };
