@@ -16,11 +16,17 @@ const userSchema = mongoose.Schema({
   },
   password: {
     type: String,
-    required: false, // false si l'utilisateur s'inscrit via Google
+    required: true,
     trim: true,
     default: null,
     minLength: 8,
     maxLength: 300,
+    select: false,
+  },
+  googleId: {
+    type: String,
+    required: false,
+    default: null,
     select: false,
   },
   phoneNumber: {

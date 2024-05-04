@@ -10,6 +10,7 @@ const {
 } = require('./notif.controller');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 /* REGISTER */
 exports.register = async (req, res) => {
@@ -17,6 +18,7 @@ exports.register = async (req, res) => {
   const emailExists = await User.findOne({ email: req.body.email });
   if (emailExists) {
     return res.status(400).send({
+      error: 'email_already_exists',
       message: 'Cet email est déjà utilisé',
     });
   }
@@ -52,13 +54,17 @@ exports.login = async (req, res) => {
     email: req.body.email,
   }).select('+password');
   if (!user) {
-    return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    return res
+      .status(404)
+      .json({ error: 'not_found', message: 'Utilisateur non trouvé' });
   }
 
   // Vérifier si le mot de passe est correct
   const passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
   if (!passwordIsValid) {
-    return res.status(401).json({ message: 'Mot de passe incorrect' });
+    return res
+      .status(401)
+      .json({ error: 'invalid_password', message: 'Mot de passe incorrect' });
   }
 
   // On renvoie un token
@@ -71,8 +77,67 @@ exports.login = async (req, res) => {
   };
   return res.json({
     data: userData,
-    token: jwt.sign(userData, 'LARDON-SERVICES'),
+    token: jwt.sign(userData, process.env.JWT_SECRET),
   });
+};
+
+/* LOGIN VIA GOOGLE */
+exports.loginGoogle = async (req, res) => {
+  const { email, username, id } = req.body;
+  const googleLoginReq = {
+    ...req,
+    body: {
+      email,
+      username,
+      password: id,
+    },
+  };
+
+  const emailExists = await User.findOne({ email: req.body.email });
+  if (emailExists) {
+    // Vérifier si l'utilisateur s'est déjà connecté par Google
+    const user = await User.findOne({
+      email: req.body.email,
+      googleId: req.body.id,
+    }).select('+password');
+
+    if (user) {
+      // On renvoie un token
+      const userData = {
+        email: user.email,
+        username: user.username,
+        phoneNumber: user.phoneNumber,
+        _id: user._id,
+        stripeId: user.stripeId,
+      };
+      return res.json({
+        data: userData,
+        token: jwt.sign(userData, process.env.JWT_SECRET),
+      });
+    } else {
+      // On met à jour l'utilisateur avec l'id Google
+      const updatedUser = await User.findByIdAndUpdate(
+        emailExists._id,
+        { googleId: req.body.id },
+        { new: true }
+      );
+
+      // On renvoie un token
+      const userData = {
+        email: updatedUser.email,
+        username: updatedUser.username,
+        phoneNumber: updatedUser.phoneNumber,
+        _id: updatedUser._id,
+        stripeId: updatedUser.stripeId,
+      };
+      return res.json({
+        data: userData,
+        token: jwt.sign(userData, process.env.JWT_SECRET),
+      });
+    }
+  } else {
+    return this.register(googleLoginReq, res);
+  }
 };
 
 /* GET CONNECTED USER */
@@ -220,69 +285,6 @@ exports.confirm = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Erreur lors de la suppression de l'utilisateur" });
-  }
-};
-
-/* HANDLE GOOGLE USER */
-exports.handleGoogleUser = async (req, res) => {
-  const { email, name } = req.body;
-
-  try {
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      const user = await new Promise((resolve, reject) => {
-        createCustomer(email)
-          .then(async (customerId) => {
-            const newUser = new User({
-              email,
-              username: name, // Use Google name as username
-              password: null, // No password for Google users
-              phoneNumber: null, // Assuming phone number is not required
-              isAdmin: false, // Adjust based on your business logic
-              stripeId: customerId,
-            });
-
-            const savedUser = await newUser.save();
-
-            // await mailSendConfirmation(savedUser);
-
-            // await smsSendConfirmation(savedUser);
-
-            await createCustomerSession(savedUser.stripeId)
-              .then(async (customerSecretId) => {
-                resolve({ user: savedUser, customerSecretId });
-              })
-              .catch((error) => {
-                return res.status(500).json({
-                  message: 'Erreur lors de la création de la session customer',
-                  error,
-                });
-              });
-          })
-          .catch((error) => reject(error));
-      });
-
-      return res.status(201).json(user);
-    } else {
-      const user = await User.findOne({ email });
-
-      createCustomerSession(newUser.stripeId)
-        .then(async (customerSecretId) => {
-          return res.status(200).json({ user: user, customerSecretId });
-        })
-        .catch((error) => {
-          return res.status(500).json({
-            message: 'Erreur lors de la création de la session customer',
-            error,
-          });
-        });
-    }
-  } catch (error) {
-    console.error('Database operation failed', error);
-    res
-      .status(500)
-      .json({ message: 'Error processing Google user data', error });
   }
 };
 
