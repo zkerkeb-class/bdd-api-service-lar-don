@@ -17,7 +17,12 @@ router.get('/connected', controller.getConnectedUser);
 router.get('/', controller.loginRequired, controller.getAll);
 router.delete('/:id', controller.loginRequired, controller.deleteUser);
 router.put('/:id', controller.loginRequired, controller.updateUser);
-router.put('/confirm/:id', controller.loginRequired, controller.confirm);
+router.post('/confirm-email', controller.confirmEmail);
+router.post(
+  '/send-confirm-email',
+  controller.loginRequired,
+  controller.sendConfirmEmail
+);
 router.get(
   '/:id/subscription',
   controller.loginRequired,

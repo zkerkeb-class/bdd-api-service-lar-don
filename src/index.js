@@ -1,19 +1,21 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const app = express();
 const apiRouter = require('./routes/index');
 const cors = require('cors');
-require('dotenv').config();
-const { default: blockFlaggedIps } = require('./utils/blockFlaggedIps');
-const { default: apiLimiter } = require('./utils/apiLimiter');
+const { blockFlaggedIps } = require('./utils/blockFlaggedIps');
+const { apiLimiter } = require('./utils/apiLimiter');
 const { webMetrics } = require('./utils/webMetrics');
-const jsonwebtoken = require('jsonwebtoken');
+const { verifyToken } = require('./utils/verifyToken');
+
 app.use(bodyParser.json());
 
 app.use(cors());
 app.use(blockFlaggedIps);
 app.use(apiLimiter);
+app.use(verifyToken);
 
 mongoose
   .connect(
@@ -24,27 +26,6 @@ mongoose
     console.info('(mongodb) Connection successfull');
   })
   .catch((err) => console.error(err));
-
-app.use(function (req, res, next) {
-  if (
-    req.headers &&
-    req.headers.authorization &&
-    req.headers.authorization.split(' ')[0] === 'Bearer'
-  ) {
-    jsonwebtoken.verify(
-      req.headers.authorization.split(' ')[1],
-      'LARDON-SERVICES',
-      function (err, decode) {
-        if (err) req.user = undefined;
-        req.user = decode;
-        next();
-      }
-    );
-  } else {
-    req.user = undefined;
-    next();
-  }
-});
 
 app.get('/metrics', webMetrics);
 app.use('/bdd-api', apiRouter);

@@ -1,6 +1,6 @@
 let flaggedIps = [];
 
-function blockFlaggedIps(req, res, next) {
+exports.blockFlaggedIps = (req, res, next) => {
   const clientIp = req.socket.remoteAddress;
 
   if (flaggedIps.includes(clientIp)) {
@@ -13,6 +13,4 @@ function blockFlaggedIps(req, res, next) {
   }
 
   next();
-}
-
-module.exports.default = blockFlaggedIps;
+};

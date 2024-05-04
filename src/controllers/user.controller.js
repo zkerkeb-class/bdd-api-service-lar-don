@@ -1,4 +1,5 @@
 const User = require('../models/user.model');
+const MailVerification = require('../models/mail-verification.model');
 const {
   createCustomer,
   createCustomerSession,
@@ -29,7 +30,7 @@ exports.register = async (req, res) => {
   const savedUser = await newUser.save();
 
   // On envoie un email et un SMS de confirmation
-  // await mailSendConfirmation(savedUser);
+  await mailSendConfirmation(savedUser);
   // await smsSendConfirmation(savedUser);
 
   // On crée un client stripe lié à notre application avec l'email de l'utilisateur
@@ -68,13 +69,9 @@ exports.login = async (req, res) => {
   }
 
   // On renvoie un token
-  const userData = {
-    email: user.email,
-    username: user.username,
-    phoneNumber: user.phoneNumber,
-    _id: user._id,
-    stripeId: user.stripeId,
-  };
+  const userData = await User.findOne({
+    email: req.body.email,
+  }).lean();
   return res.json({
     data: userData,
     token: jwt.sign(userData, process.env.JWT_SECRET),
@@ -95,36 +92,28 @@ exports.loginGoogle = async (req, res) => {
 
     if (user) {
       // On renvoie un token
-      const userData = {
-        email: user.email,
-        username: user.username,
-        phoneNumber: user.phoneNumber,
-        _id: user._id,
-        stripeId: user.stripeId,
-      };
+      const userData = await User.findOne({
+        email: req.body.email,
+      }).lean();
       return res.json({
         data: userData,
         token: jwt.sign(userData, process.env.JWT_SECRET),
       });
     } else {
       // On met à jour l'utilisateur avec l'id Google
-      const updatedUser = await User.findByIdAndUpdate(
+      await User.findByIdAndUpdate(
         emailExists._id,
         { googleId: req.body.id },
         { new: true }
       );
 
       // On renvoie un token
-      const userData = {
-        email: updatedUser.email,
-        username: updatedUser.username,
-        phoneNumber: updatedUser.phoneNumber,
-        _id: updatedUser._id,
-        stripeId: updatedUser.stripeId,
-      };
+      const userData = await User.findOne({
+        email: req.body.email,
+      }).lean();
       return res.json({
-        data: userData,
-        token: jwt.sign(userData, process.env.JWT_SECRET),
+        data: JSON.parse(userData),
+        token: jwt.sign(JSON.parse(userData), process.env.JWT_SECRET),
       });
     }
   } else {
@@ -156,33 +145,25 @@ exports.loginDiscord = async (req, res) => {
 
     if (user) {
       // On renvoie un token
-      const userData = {
-        email: user.email,
-        username: user.username,
-        phoneNumber: user.phoneNumber,
-        _id: user._id,
-        stripeId: user.stripeId,
-      };
+      const userData = await User.findOne({
+        email: req.body.email,
+      }).lean();
       return res.json({
         data: userData,
         token: jwt.sign(userData, process.env.JWT_SECRET),
       });
     } else {
       // On met à jour l'utilisateur avec l'id Discord
-      const updatedUser = await User.findByIdAndUpdate(
+      await User.findByIdAndUpdate(
         emailExists._id,
         { discordId: req.body.id },
         { new: true }
       );
 
       // On renvoie un token
-      const userData = {
-        email: updatedUser.email,
-        username: updatedUser.username,
-        phoneNumber: updatedUser.phoneNumber,
-        _id: updatedUser._id,
-        stripeId: updatedUser.stripeId,
-      };
+      const userData = await User.findOne({
+        email: req.body.email,
+      }).lean();
       return res.json({
         data: userData,
         token: jwt.sign(userData, process.env.JWT_SECRET),
@@ -217,33 +198,25 @@ exports.loginGithub = async (req, res) => {
 
     if (user) {
       // On renvoie un token
-      const userData = {
-        email: user.email,
-        username: user.username,
-        phoneNumber: user.phoneNumber,
-        _id: user._id,
-        stripeId: user.stripeId,
-      };
+      const userData = await User.findOne({
+        email: req.body.email,
+      }).lean();
       return res.json({
         data: userData,
         token: jwt.sign(userData, process.env.JWT_SECRET),
       });
     } else {
       // On met à jour l'utilisateur avec l'id Github
-      const updatedUser = await User.findByIdAndUpdate(
+      await User.findByIdAndUpdate(
         emailExists._id,
         { githubId: req.body.id },
         { new: true }
       );
 
       // On renvoie un token
-      const userData = {
-        email: updatedUser.email,
-        username: updatedUser.username,
-        phoneNumber: updatedUser.phoneNumber,
-        _id: updatedUser._id,
-        stripeId: updatedUser.stripeId,
-      };
+      const userData = await User.findOne({
+        email: req.body.email,
+      }).lean();
       return res.json({
         data: userData,
         token: jwt.sign(userData, process.env.JWT_SECRET),
@@ -387,29 +360,49 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-exports.confirm = async (req, res) => {
-  try {
-    const userId = req.params.id;
+exports.confirmEmail = async (req, res) => {
+  const token = req.params.token;
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $set: { live: true } },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-
-    return res
-      .status(200)
-      .json({ message: 'Votre compte à bien été confirmer' });
-  } catch (error) {
-    console.error(error);
+  const mailVerification = await MailVerification.findOneAndUpdate(
+    { token: token },
+    { isLive: true }
+  ).catch((error) => {
     return res
       .status(500)
-      .json({ message: "Erreur lors de la suppression de l'utilisateur" });
+      .json({ message: 'Erreur lors de la confirmation du mail' });
+  });
+
+  const newUser = await User.findOneAndUpdate(
+    { email: mailVerification.email },
+    { isLive: true }
+  ).catch((error) => {
+    return res.status(500).json({ message: 'Erreur lors de la confirmation' });
+  });
+
+  if (!newUser || !mailVerification) {
+    return res
+      .status(404)
+      .json({ message: 'Token de confirmation non trouvé.' });
   }
+
+  if (req.user && req.user._id === newUser._id) {
+    const userData = await User.findOne({
+      email: mailVerification.email,
+    }).lean();
+    return res.status(200).json({
+      message: 'Votre email a bien été confirmé',
+      data: userData,
+      token: jwt.sign(userData, process.env.JWT_SECRET),
+    });
+  } else {
+    return res.status(200).json({ message: 'Votre email a bien été confirmé' });
+  }
+};
+
+exports.sendConfirmEmail = async (req, res) => {
+  const mailConfirmation = await mailSendConfirmation(req.user);
+
+  return res.status(200).json(mailConfirmation);
 };
 
 exports.getUserSubscription = async (req, res) => {
