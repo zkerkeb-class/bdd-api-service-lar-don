@@ -84,14 +84,6 @@ exports.login = async (req, res) => {
 /* LOGIN VIA GOOGLE */
 exports.loginGoogle = async (req, res) => {
   const { email, username, id } = req.body;
-  const googleLoginReq = {
-    ...req,
-    body: {
-      email,
-      username,
-      password: id,
-    },
-  };
 
   const emailExists = await User.findOne({ email: req.body.email });
   if (emailExists) {
@@ -99,7 +91,7 @@ exports.loginGoogle = async (req, res) => {
     const user = await User.findOne({
       email: req.body.email,
       googleId: req.body.id,
-    }).select('+password');
+    }).select('+googleId');
 
     if (user) {
       // On renvoie un token
@@ -136,7 +128,139 @@ exports.loginGoogle = async (req, res) => {
       });
     }
   } else {
+    const googleLoginReq = {
+      ...req,
+      body: {
+        email,
+        username,
+        password: id,
+        googleId: id,
+      },
+    };
+
     return this.register(googleLoginReq, res);
+  }
+};
+
+/* LOGIN VIA DISCORD */
+exports.loginDiscord = async (req, res) => {
+  const { email, username, id } = req.body;
+
+  const emailExists = await User.findOne({ email: req.body.email });
+  if (emailExists) {
+    // Vérifier si l'utilisateur s'est déjà connecté par Discord
+    const user = await User.findOne({
+      email: req.body.email,
+      discordId: req.body.id,
+    }).select('+discordId');
+
+    if (user) {
+      // On renvoie un token
+      const userData = {
+        email: user.email,
+        username: user.username,
+        phoneNumber: user.phoneNumber,
+        _id: user._id,
+        stripeId: user.stripeId,
+      };
+      return res.json({
+        data: userData,
+        token: jwt.sign(userData, process.env.JWT_SECRET),
+      });
+    } else {
+      // On met à jour l'utilisateur avec l'id Discord
+      const updatedUser = await User.findByIdAndUpdate(
+        emailExists._id,
+        { discordId: req.body.id },
+        { new: true }
+      );
+
+      // On renvoie un token
+      const userData = {
+        email: updatedUser.email,
+        username: updatedUser.username,
+        phoneNumber: updatedUser.phoneNumber,
+        _id: updatedUser._id,
+        stripeId: updatedUser.stripeId,
+      };
+      return res.json({
+        data: userData,
+        token: jwt.sign(userData, process.env.JWT_SECRET),
+      });
+    }
+  } else {
+    const discordLoginReq = {
+      ...req,
+      body: {
+        email,
+        username,
+        password: id,
+        discordId: id,
+      },
+    };
+
+    return this.register(discordLoginReq, res);
+  }
+};
+
+/* LOGIN VIA GITHUB */
+exports.loginGithub = async (req, res) => {
+  const { email, username, id } = req.body;
+
+  const emailExists = await User.findOne({ email: req.body.email });
+  if (emailExists) {
+    // Vérifier si l'utilisateur s'est déjà connecté par Github
+    const user = await User.findOne({
+      email: req.body.email,
+      githubId: req.body.id,
+    }).select('+githubId');
+
+    if (user) {
+      // On renvoie un token
+      const userData = {
+        email: user.email,
+        username: user.username,
+        phoneNumber: user.phoneNumber,
+        _id: user._id,
+        stripeId: user.stripeId,
+      };
+      return res.json({
+        data: userData,
+        token: jwt.sign(userData, process.env.JWT_SECRET),
+      });
+    } else {
+      // On met à jour l'utilisateur avec l'id Github
+      const updatedUser = await User.findByIdAndUpdate(
+        emailExists._id,
+        { githubId: req.body.id },
+        { new: true }
+      );
+
+      // On renvoie un token
+      const userData = {
+        email: updatedUser.email,
+        username: updatedUser.username,
+        phoneNumber: updatedUser.phoneNumber,
+        _id: updatedUser._id,
+        stripeId: updatedUser.stripeId,
+      };
+      return res.json({
+        data: userData,
+        token: jwt.sign(userData, process.env.JWT_SECRET),
+      });
+    }
+  } else {
+    const githubLoginReq = {
+      ...req,
+      body: {
+        email,
+        username,
+        password: id,
+        githubId: id,
+      },
+    };
+
+    return this.register(githubLoginReq, res);
   }
 };
 

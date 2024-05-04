@@ -29,6 +29,18 @@ const userSchema = mongoose.Schema({
     default: null,
     select: false,
   },
+  discordId: {
+    type: String,
+    required: false,
+    default: null,
+    select: false,
+  },
+  githubId: {
+    type: String,
+    required: false,
+    default: null,
+    select: false,
+  },
   phoneNumber: {
     //Format type [indicatif][numero] : un numero français 33671794543
     type: String,

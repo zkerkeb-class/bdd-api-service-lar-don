@@ -10,6 +10,8 @@ router.get(
   controller.getCustomerSecret
 );
 router.post('/login-google', controller.loginGoogle);
+router.post('/login-discord', controller.loginDiscord);
+router.post('/login-github', controller.loginGithub);
 router.post('/login', controller.login);
 router.get('/connected', controller.getConnectedUser);
 router.get('/', controller.loginRequired, controller.getAll);
