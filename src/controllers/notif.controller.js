@@ -26,7 +26,9 @@ exports.mailSendConfirmation = async (user) => {
             'Erreur lors de la suppression de TokenVerification',
             error
           );
-          throw error;
+          return {
+            message: 'Erreur lors de la suppression de TokenVerification',
+          };
         });
       } else {
         return {
@@ -56,7 +58,9 @@ exports.mailSendConfirmation = async (user) => {
           "Erreur lors de l'enregistrement de TokenVerification",
           error
         );
-        throw error;
+        return {
+          message: "Erreur lors de l'enregistrement de TokenVerification",
+        };
       });
 
       return {
