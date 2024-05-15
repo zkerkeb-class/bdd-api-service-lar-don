@@ -333,7 +333,8 @@ exports.confirmEmail = async (req, res) => {
 
   const newUser = await User.findOneAndUpdate(
     { email: tokenVerification.email },
-    { isLive: true }
+    { isLive: true },
+    { new: true }
   ).catch((error) => {
     return res.status(500).json({ message: 'Erreur lors de la confirmation' });
   });
@@ -404,8 +405,6 @@ exports.updatePhoneNumber = async (req, res) => {
 };
 
 exports.resetPassword = async (req, res) => {
-  await sendSms(req.user.phoneNumber, 'test');
-
   await TokenVerification.deleteMany({
     email: req.user.email,
     type: 'reset-password',
@@ -419,6 +418,8 @@ exports.resetPassword = async (req, res) => {
     type: 'reset-password',
   });
   await tokenVerification.save();
+
+  await sendSms(req.user.phoneNumber, token);
 
   return res
     .status(200)
